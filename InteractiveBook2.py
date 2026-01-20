@@ -52,16 +52,29 @@ MIN_K_BY_MODE = {
     "BM25": 6,
 }
 
+SEARCH_MODE_LABELS = {
+    "Fusion": "Balanced (Hybrid Search)",
+    "Vector": "Meaning Search (Semantic)",
+    "BM25": "Keyword Search (Exact terms)",
+}
+
+SEARCH_MODE_HELP = {
+    "Fusion": "Combines semantic + keyword search (RRF). Best overall accuracy.",
+    "Vector": "Semantic search using embeddings. Best for concepts/definitions/synonyms.",
+    "BM25": "Keyword-based retrieval. Best for exact terms, acronyms, and quotes.",
+}
+
+
 def enforce_min_k(search_mode: str, k: int) -> int:
     return max(int(k), MIN_K_BY_MODE.get(search_mode, 6))
 
 def retrieval_hint(search_mode: str) -> str:
     mk = MIN_K_BY_MODE.get(search_mode, 6)
     if search_mode == "Vector":
-        return f"Vector works best with **k ≥ {mk}** (recommended for figures/definitions)."
+        return f"Meaning Search (Semantic) works best with **k ≥ {mk}** (recommended for figures/definitions)."
     if search_mode == "Fusion":
-        return f"Fusion is stable with **k ≥ {mk}** (balanced accuracy + speed)."
-    return f"BM25 is stable with **k ≥ {mk}** (keyword matching)."
+        return f"Balanced (Hybrid Search) is stable with **k ≥ {mk}** (balanced accuracy + speed)."
+    return f"Keyword Search (Exact terms) is stable with **k ≥ {mk}** (keyword matching)."
 
 
 # =================== 1) SETUP & CONFIG ===================
@@ -983,7 +996,7 @@ if "course_plan" not in st.session_state:
 if "progress" not in st.session_state:
     st.session_state.progress = {}  # lid -> {"passed": bool, "score": int}
 
-# # ===== DEV TESTING ONLY =====
+# # # ===== DEV TESTING ONLY =====
 # if "course_plan" in st.session_state and st.session_state.course_plan:
 #     for l in st.session_state.course_plan["lessons"]:
 #         st.session_state.progress[l["lesson_id"]] = {
@@ -1026,6 +1039,8 @@ if not st.session_state.user_profile["setup_complete"]:
     st.write("I will analyze the book and create a **chapter-based** learning path (Curriculum → Lessons → Quizzes → Final Exam → Certificate).")
     st.markdown("</div>", unsafe_allow_html=True)
 
+   
+    # =================== Onboarding Form (SUBMIT - inside the form) ===================
     with st.form("onboarding_form"):
         col1, col2 = st.columns(2)
         with col1:
@@ -1035,30 +1050,6 @@ if not st.session_state.user_profile["setup_complete"]:
             goal = st.text_input("Main Goal", placeholder="e.g. Master the basics")
             level = st.select_slider("Level", options=["Beginner", "Advanced"], value="Beginner")
 
-        with st.expander("⚙️ Advanced Settings"):
-            search_mode = st.selectbox(
-                "Search mode",
-                ["Fusion", "Vector", "BM25"],
-                index=0,
-                key="onboarding_search_mode"
-            )
-
-            default_k = max(6, MIN_K_BY_MODE.get(search_mode, 6))
-            k_chunks = st.slider(
-                "Context window (k)",
-                3, 12,
-                default_k,
-                key="onboarding_k_chunks"
-            )
-
-            st.caption(retrieval_hint(search_mode))
-
-            if k_chunks < MIN_K_BY_MODE.get(search_mode, 6):
-                st.warning(
-                    f"⚠️ For **{search_mode}**, set **k ≥ {MIN_K_BY_MODE[search_mode]}** "
-                    "to avoid missing relevant chunks."
-                )
-
         if st.form_submit_button("🚀 Generate Curriculum"):
             if name and role and goal:
                 st.session_state.user_profile.update({
@@ -1067,10 +1058,13 @@ if not st.session_state.user_profile["setup_complete"]:
                     "role": role,
                     "goal": goal,
                     "level": level,
-                    "search_mode": search_mode,
-                    "k_chunks": enforce_min_k(search_mode, k_chunks),
-
+                    "search_mode": st.session_state.onboarding_search_mode,
+                    "k_chunks": enforce_min_k(
+                        st.session_state.onboarding_search_mode,
+                        st.session_state.onboarding_k_chunks
+                    ),
                 })
+
                 with st.spinner("Building chapter-based curriculum from the book…"):
                     plan = build_chapter_based_course_plan(PDF_PATH)
                     st.session_state.course_plan = plan
@@ -1087,6 +1081,55 @@ if not st.session_state.user_profile["setup_complete"]:
                 st.rerun()
             else:
                 st.error("Please fill in your Name, Role, and Goal.")
+
+     # =================== Advanced Retrieval (DYNAMIC - outside the form) ===================
+    with st.expander("⚙️ Advanced Settings"):
+        search_mode = st.selectbox(
+            "Search mode",
+            options=["Fusion", "Vector", "BM25"],
+            index=0,
+            format_func=lambda x: SEARCH_MODE_LABELS.get(x, x),
+            key="onboarding_search_mode",
+        )
+
+        # dynamic help text (updates immediately)
+        st.caption(SEARCH_MODE_HELP.get(search_mode, ""))
+
+        # dynamic "recommended" message (updates immediately)
+        if search_mode == "Fusion":
+            st.success("✅ Recommended: best overall reliability.")
+        elif search_mode == "Vector":
+            st.info("💡 Best for concept/definition questions.")
+        else:
+            st.info("🔎 Best for exact keywords, acronyms, and quotes.")
+
+        # ----- Dynamic slider min/default behavior -----
+        min_k = MIN_K_BY_MODE.get(search_mode, 6)
+
+        # initialize slider state once
+        if "onboarding_k_chunks" not in st.session_state:
+            st.session_state.onboarding_k_chunks = min_k
+
+        # if user switches mode and current k is below the new minimum, auto-bump it up
+        if int(st.session_state.onboarding_k_chunks) < int(min_k):
+            st.session_state.onboarding_k_chunks = min_k
+
+        k_chunks = st.slider(
+            "How much of the book the AI reads (chunks)",
+            3, 12,
+            value=int(st.session_state.onboarding_k_chunks),
+            key="onboarding_k_chunks",
+        )
+
+        st.caption(
+            "Each chunk is a small overlapping section of the book. "
+            "More chunks = broader context (higher recall). Fewer chunks = more focused answers."
+        )
+        st.caption(retrieval_hint(search_mode))
+
+        if k_chunks < min_k:
+            st.warning(f"⚠️ For this mode, set **k ≥ {min_k}** for reliable retrieval.")
+
 
 # =================== VIEW: MAIN APP ===================
 
@@ -1531,26 +1574,19 @@ else:
         st.header("Settings")
         p = st.session_state.user_profile
 
+    
+
+        # ============ FORM (submit only) ============
         with st.form("edit_settings"):
+            st.markdown("### Profile")
             new_name = st.text_input("Name", value=p["name"])
             new_role = st.text_input("Role", value=p["role"])
             new_goal = st.text_input("Goal", value=p["goal"])
-            new_level = st.selectbox("Level", ["Beginner", "Advanced"], index=0 if p["level"] == "Beginner" else 1)
-
-            st.markdown("**Retrieval**")
-            new_search = st.selectbox(
-                "Search mode",
-                ["Fusion", "Vector", "BM25"],
-                index=["Fusion", "Vector", "BM25"].index(p["search_mode"])
+            new_level = st.selectbox(
+                "Level",
+                ["Beginner", "Advanced"],
+                index=0 if p["level"] == "Beginner" else 1
             )
-
-            min_k = MIN_K_BY_MODE.get(new_search, 6)
-            new_k = st.slider("Context chunks (k)", 3, 12, value=int(p["k_chunks"]))
-
-            st.caption(retrieval_hint(new_search))
-            if new_k < min_k:
-                st.warning(f"⚠️ For **{new_search}**, set **k ≥ {min_k}** for reliable answers.")
-
 
             if st.form_submit_button("Save"):
                 st.session_state.user_profile.update({
@@ -1558,9 +1594,60 @@ else:
                     "role": new_role,
                     "goal": new_goal,
                     "level": new_level,
-                    "search_mode": new_search,
-                    "k_chunks": enforce_min_k(new_search, new_k),
-
+                    "search_mode": st.session_state.settings_search_mode,
+                    "k_chunks": enforce_min_k(
+                        st.session_state.settings_search_mode,
+                        st.session_state.settings_k_chunks
+                    ),
                 })
                 st.toast("Saved!")
                 st.rerun()
+
+
+        # ============ DYNAMIC RETRIEVAL CONTROLS (outside form) ============
+        st.markdown("### Retrieval")
+
+        dyn_search = st.selectbox(
+            "Search mode",
+            options=["Fusion", "Vector", "BM25"],
+            index=["Fusion", "Vector", "BM25"].index(p["search_mode"]),
+            format_func=lambda x: SEARCH_MODE_LABELS.get(x, x),
+            key="settings_search_mode",
+        )
+
+        st.caption(SEARCH_MODE_HELP.get(dyn_search, ""))
+
+        if dyn_search == "Fusion":
+            st.success("✅ Recommended: best overall reliability.")
+        elif dyn_search == "Vector":
+            st.info("💡 Best for concept/definition questions.")
+        else:
+            st.info("🔎 Best for exact keywords, acronyms, and quotes.")
+
+        min_k = MIN_K_BY_MODE.get(dyn_search, 6)
+
+        # initialize / keep slider state
+        if "settings_k_chunks" not in st.session_state:
+            st.session_state.settings_k_chunks = int(p["k_chunks"])
+
+        # if user changes mode and current k is too low, bump it
+        if int(st.session_state.settings_k_chunks) < int(min_k):
+            st.session_state.settings_k_chunks = int(min_k)
+
+        dyn_k = st.slider(
+            "How much of the book the AI reads (chunks)",
+            3, 12,
+            value=int(st.session_state.settings_k_chunks),
+            key="settings_k_chunks",
+        )
+
+        st.caption(
+            "Each chunk is a small overlapping section of the book. "
+            "More chunks = broader context (higher recall). Fewer chunks = more focused answers."
+        )
+        st.caption(retrieval_hint(dyn_search))
+
+        if dyn_k < min_k:
+            st.warning(f"⚠️ For this mode, set **k ≥ {min_k}** for reliable retrieval.")
+
+        st.markdown("---")
