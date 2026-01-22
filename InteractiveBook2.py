@@ -984,6 +984,16 @@ st.set_page_config(page_title="Smart Book Tutor", page_icon="🧠📚", layout="
 st.markdown(APP_CSS, unsafe_allow_html=True)
 set_bg_image("assets/bg.png")  # optional
 
+st.markdown("""
+<style>
+/* Make the whole sidebar scrollable */
+section[data-testid="stSidebar"] > div {
+    height: 100vh;
+    overflow-y: auto;
+}
+</style>
+""", unsafe_allow_html=True)
+
 # ---- State init (friend structure) ----
 if "user_profile" not in st.session_state:
     st.session_state.user_profile = {
