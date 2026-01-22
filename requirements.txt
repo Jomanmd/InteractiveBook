@@ -9,3 +9,7 @@ langchain-text-splitters
 langchain-huggingface
 faiss-cpu
 rank-bm25
+sentence-transformers
+torch
+transformers
+accelerate
