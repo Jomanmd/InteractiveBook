@@ -10,7 +10,6 @@ from typing import List, Dict, Any, Optional
 import numpy as np
 import requests
 import streamlit as st
-from dotenv import load_dotenv
 from pypdf import PdfReader
 
 # LangChain & Vector Store
@@ -20,6 +19,13 @@ from langchain_community.vectorstores import FAISS
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_core.documents import Document
 from rank_bm25 import BM25Okapi
+
+import os
+import streamlit as st
+
+# Local dev: .env may set os.environ
+# Streamlit Cloud: st.secrets should provide the key
+GROQ_API_KEY = st.secrets.get("GROQ_API_KEY", None) or os.getenv("GROQ_API_KEY")
 
 # =================== BACKGROUND IMAGE ===================
 
@@ -79,7 +85,6 @@ def retrieval_hint(search_mode: str) -> str:
 
 # =================== 1) SETUP & CONFIG ===================
 
-load_dotenv()  # API key lives in env/.env
 
 GROQ_MODEL = "llama-3.1-8b-instant"
 GROQ_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions"
