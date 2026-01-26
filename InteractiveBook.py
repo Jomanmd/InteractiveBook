@@ -6,9 +6,6 @@ from typing import List, Dict, Any
 import numpy as np
 import requests
 import streamlit as st
-from pypdf import PdfReader
-import re
-
 
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -314,89 +311,6 @@ def call_llm(prompt: str) -> str:
 
 # =================== HELPERS ===================
 
-def _word_to_num(w: str) -> int:
-    w = w.lower().strip()
-    mapping = {
-        "one": 1, "two": 2, "three": 3, "four": 4, "five": 5,
-        "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10
-    }
-    return mapping.get(w, -1)
-
-def extract_chapter_titles_from_book(pdf_path: str) -> List[Dict[str, Any]]:
-    """
-    Extracts the 10 chapter topics from the 'Chapters Included in This Book' section
-    (in Chapter 1). This is grounded in the PDF, not LLM guesswork.
-    """
-    reader = PdfReader(pdf_path)
-
-    # Find the page that contains the chapter list section
-    start_idx = None
-    for i in range(min(60, len(reader.pages))):
-        txt = (reader.pages[i].extract_text() or "")
-        if "Chapters Included in This Book" in txt:
-            start_idx = i
-            break
-
-    if start_idx is None:
-        return []
-
-    # That section spans at least 2 pages in this book
-    txt = (reader.pages[start_idx].extract_text() or "") + "\n" + (reader.pages[start_idx + 1].extract_text() or "")
-
-    # Parse "Chapter two ... is on <topic>."
-    chapters = {}
-
-    # Chapter one is described earlier; we’ll set it from the Contents-known title:
-    chapters[1] = "Intelligent Interactive Systems in Knowledge-Based Environments: An Introduction"
-
-    for m in re.finditer(r"Chapter\s+(one|two|three|four|five|six|seven|eight|nine)\b.*?\bis on\s+(.+?)(?:\.\s|\n)", txt, re.IGNORECASE | re.DOTALL):
-        num = _word_to_num(m.group(1))
-        title = " ".join(m.group(2).split())
-        if num != -1:
-            chapters[num] = title
-
-    # Final chapter line: "The final chapter ... is on <topic>."
-    m = re.search(r"The\s+final\s+chapter.*?\bis on\s+(.+?)(?:\.\s|\n)", txt, re.IGNORECASE | re.DOTALL)
-    if m:
-        chapters[10] = " ".join(m.group(1).split())
-
-    # Return sorted list 1..10 if we have them
-    result = []
-    for i in range(1, 11):
-        if i in chapters:
-            result.append({"chapter_number": i, "title": chapters[i]})
-    return result
-
-def build_chapter_based_course_plan(pdf_path: str) -> dict:
-    chapters = extract_chapter_titles_from_contents(pdf_path)
-
-    # fallback (should rarely happen)
-    if len(chapters) < 10:
-        chapters = [
-            {"chapter_number": i, "title": f"Chapter {i}"}
-            for i in range(1, 11)
-        ]
-
-    lessons = []
-    for c in chapters:
-        n = c["chapter_number"]
-        title = c["title"]
-        lessons.append({
-            "lesson_id": n,
-            "chapter_number": n,
-            "title": title,                 # ✅ REAL CHAPTER TITLE
-            "goal": f"Understand the full content of Chapter {n}: {title}.",
-            "search_query": f"Chapter {n} {title}",
-            "prereq": "None" if n == 1 else f"Complete Chapter {n-1}.",
-        })
-
-    return {
-        "course_title": "Intelligent Interactive Systems (Chapter-Based Course)",
-        "lessons": lessons
-    }
-
-
-
 def build_level_instruction(level: str) -> str:
     if level == "Beginner":
         return (
@@ -430,107 +344,6 @@ def build_sources(context_docs: List[Document], max_sources: int = 4):
             snippet = snippet[:520] + "…"
         sources.append({"label": f"Chunk {i} — page {page}", "page": page, "snippet": snippet})
     return sources
-
-
-def extract_chapter_titles_from_contents(pdf_path: str) -> List[Dict[str, Any]]:
-    """
-    Extract chapter titles from the Table of Contents by reading TOC pages and
-    collecting the multi-line chapter headings until the author/page line.
-    Returns: [{"chapter_number": 1, "title": "..."}] for chapters 1..10
-    """
-
-    reader = PdfReader(pdf_path)
-
-    # In this book TOC is around pages 6-10 (0-indexed pages 5-9),
-    # but we search for the page that contains "Contents" to be safe.
-    toc_start = None
-    for i in range(min(30, len(reader.pages))):
-        t = (reader.pages[i].extract_text() or "")
-        if "Contents" in t:
-            toc_start = i
-            break
-
-    if toc_start is None:
-        return []
-
-    toc_text = ""
-    for i in range(toc_start, min(toc_start + 6, len(reader.pages))):
-        toc_text += (reader.pages[i].extract_text() or "") + "\n"
-
-    lines = [ln.strip() for ln in toc_text.splitlines() if ln.strip()]
-
-    # Chapter lines start like: "1 Intelligent Interactive Systems in Knowledge-Based"
-    # chap_start = re.compile(r"^(10|[1-9])\s+(.*)$")
-    chap_start = re.compile(r"^(10|[1-9])\s+(?![.\d])(.+)$")
-
-    # Author/page line has dots + a final page number like ".............. 25"
-    author_page = re.compile(r"\.{5,}\s*\d+\s*$")
-
-    chapters: Dict[int, str] = {}
-    current_num = None
-    current_title_parts: List[str] = []
-
-    for ln in lines:
-        m = chap_start.match(ln)
-        if m:
-            # If we were in a previous chapter and never hit author line, finalize it
-            if current_num is not None and current_title_parts and current_num not in chapters:
-                chapters[current_num] = " ".join(current_title_parts).strip()
-
-            current_num = int(m.group(1))
-            current_title_parts = [m.group(2).strip()]
-            continue
-
-        if current_num is not None:
-            # stop collecting when we hit the author/page dotted line
-            if author_page.search(ln):
-                title = " ".join(current_title_parts)
-                title = " ".join(title.split())  # normalize spaces
-
-                # ✅ cleanup punctuation
-                title = title.strip(" ,.-")
-
-                # ✅ remove authors from Chapter 10 (PNS chapter)
-                if current_num == 10 and title.lower().startswith("pns:"):
-                    low = title.lower()
-                    cut = low.find("on the web")
-                    if cut != -1:
-                        title = title[:cut + len("on the web")].strip(" ,.-")
-
-                if 1 <= current_num <= 10:
-                    chapters[current_num] = title
-
-                current_num = None
-                current_title_parts = []
-            else:
-                # keep adding wrapped title lines (TOC wraps titles across lines)
-                # but ignore subsection lines like "1.1 Introduction"
-                if not re.match(r"^\d+\.\d+", ln):
-                    current_title_parts.append(ln)
-
-    # Final guard
-    if current_num is not None and current_title_parts and current_num not in chapters:
-        chapters[current_num] = " ".join(current_title_parts).strip()
-
-    result = []
-    for n in range(1, 11):
-        if n in chapters:
-            result.append({"chapter_number": n, "title": chapters[n]})
-    return result
-
-
-def is_contents_chunk(d: Document) -> bool:
-    t = (d.page_content or "").lower()
-    # Common signals that this chunk is from a table of contents
-    if "contents" in t[:200]:
-        return True
-    if "........" in t:
-        return True
-    # lots of section numbering in a short space
-    if t.count("1.") + t.count("2.") + t.count("3.") + t.count("4.") > 8:
-        return True
-    return False
-
 
 
 # =================== QUIZ / CHECKPOINT ===================
@@ -586,23 +399,14 @@ Topic:
 
 # =================== COURSE PLAN GENERATION ===================
 
-def generate_course_plan_json(context_text: str, user_level: str, n_lessons: int = 10) -> dict:
+def generate_course_plan_json(context_text: str, user_level: str, n_lessons: int = 6) -> dict:
     level_instruction = build_level_instruction(user_level)
-
     plan_prompt = f"""
 {level_instruction}
-You are building a mini-course syllabus from the EXACT chapters of the book.
+You are building a mini-course syllabus from a course book.
 
 Use ONLY the context below (from the book). Do not use outside knowledge.
-Return STRICT JSON ONLY (no markdown, no extra text).
-
-VERY IMPORTANT RULES:
-- Create EXACTLY {n_lessons} lessons.
-- Each lesson MUST correspond to ONE chapter of the book in order (Chapter 1 → Chapter {n_lessons}).
-- Titles MUST be based on the chapter titles in the book (or the closest matching chapter heading from the contents).
-- Each lesson should cover the whole chapter (not a small section).
-- search_query MUST be designed to retrieve that chapter content, e.g. "Chapter 3 <chapter title>" or "CHAPTER 3 <chapter title>".
-- The flow must be: foundational concepts first, then more advanced/specific chapters.
+Return STRICT JSON ONLY (no markdown).
 
 Schema:
 {{
@@ -610,7 +414,6 @@ Schema:
   "lessons": [
     {{
       "lesson_id": 1,
-      "chapter_number": 1,
       "title": "string",
       "goal": "1 sentence",
       "search_query": "string",
@@ -619,6 +422,12 @@ Schema:
     }}
   ]
 }}
+
+Rules:
+- Create exactly {n_lessons} lessons.
+- The lessons must progress from easier to harder.
+- search_query should be short and retrieve the right parts from the book.
+- Keep titles concise and course-like.
 
 Context:
 {context_text}
@@ -682,9 +491,6 @@ class FusionPDFVectorDB:
             length_function=len,
         )
         self.documents: List[Document] = splitter.split_documents(documents)
-
-        # ✅ Add chapter_number metadata to each chunk (chapter-locking)
-        self._assign_chapters_to_chunks()
 
         self.bm25_docs = self.documents
         self.bm25 = self._create_bm25_index(self.bm25_docs)
@@ -755,28 +561,6 @@ class FusionPDFVectorDB:
             return [m["doc"] for m in merged[:k]]
         except:
             return self.vector_search(query, k=k)
-        
-    def _assign_chapters_to_chunks(self):
-        """
-        Walk through chunks in order and assign chapter_number based on encountering
-        headings like 'Chapter 1' / 'CHAPTER 1'. Propagates the last seen chapter.
-        """
-        import re
-
-        chapter_pat = re.compile(r"\bchapter\s+(\d{1,2})\b", re.IGNORECASE)
-        current_chapter = None
-
-        for d in self.documents:
-            text = d.page_content[:1200]  # scan first part of chunk
-            m = chapter_pat.search(text)
-            if m:
-                n = int(m.group(1))
-                if 1 <= n <= 50:
-                    current_chapter = n
-
-            # if we never saw any chapter yet, keep None
-            d.metadata["chapter_number"] = current_chapter
-    
 
 
 # =================== STREAMLIT APP ===================
@@ -820,45 +604,18 @@ vector_db: FusionPDFVectorDB = st.session_state.vector_db
 
 
 # Retrieval helper
-def retrieve(query: str, k: int, chapter_number=None) -> List[Document]:
-    kk = max(k * 3, 15)
-
+def retrieve(query: str, k: int) -> List[Document]:
     if st.session_state.search_type == "Fusion":
-        docs = vector_db.fusion_search(query, k=kk)
-    elif st.session_state.search_type == "Vector":
-        docs = vector_db.vector_search(query, k=kk)
-    else:
-        docs = vector_db.bm25_search(query, k=kk)
-
-    # --- remove TOC-like chunks ---
-    def is_contents_chunk(d: Document) -> bool:
-        t = (d.page_content or "").lower()
-        if "contents" in t[:200]:
-            return True
-        if "........" in t:
-            return True
-        return False
-
-    docs = [d for d in docs if not is_contents_chunk(d)]
-
-    # --- optional chapter filter (only if your chunks have chapter_number metadata) ---
-    if chapter_number is not None:
-        filtered = [d for d in docs if d.metadata.get("chapter_number") == chapter_number]
-
-        # Use chapter-filtered docs only if we have enough
-        if len(filtered) >= 2:
-            docs = filtered
-        # Otherwise: DO NOT filter (better to have something than nothing)
-
-
-    return docs[:k]
-
+        return vector_db.fusion_search(query, k=k)
+    if st.session_state.search_type == "Vector":
+        return vector_db.vector_search(query, k=k)
+    return vector_db.bm25_search(query, k=k)
 
 
 # Chatbot answer (now retrieve exists ✅)
-def answer_lesson_question(user_question: str, lesson_title: str, lesson_query: str, user_level: str, k: int, chapter_number: int):
+def answer_lesson_question(user_question: str, lesson_title: str, lesson_query: str, user_level: str, k: int):
     rag_query = f"{lesson_query} | {user_question}"
-    context_docs = retrieve(rag_query, k=k, chapter_number=chapter_number)
+    context_docs = retrieve(rag_query, k=k)
     context_text = format_context_for_prompt(context_docs)
 
     level_instruction = build_level_instruction(user_level)
@@ -986,6 +743,10 @@ if page == "🏠 Home":
 
     st.markdown("</div>", unsafe_allow_html=True)
 
+    st.markdown("</div>", unsafe_allow_html=True)
+
+
+
 # =================== CURRICULUM ===================
 
 if page == "📚 Curriculum":
@@ -995,8 +756,11 @@ if page == "📚 Curriculum":
     c1, c2 = st.columns([1, 1])
     with c1:
         if st.button("✨ Generate Curriculum from Book", key="gen_curr"):
-            with st.spinner("Building chapter-based curriculum from the book…"):
-                plan = build_chapter_based_course_plan(PDF_PATH)
+            outline_context_docs = vector_db.documents[:10]
+            outline_context = format_context_for_prompt(outline_context_docs)
+
+            with st.spinner("Building course plan from the book…"):
+                plan = generate_course_plan_json(outline_context, st.session_state.user_level, n_lessons=6)
 
             st.session_state.course_plan = plan
             st.session_state.current_lesson_idx = 0
@@ -1008,8 +772,6 @@ if page == "📚 Curriculum":
             st.session_state.final_submitted = False
             st.toast("Curriculum created ✅", icon="📚")
             st.rerun()
-
-
 
     with c2:
         if st.button("🧹 Reset Course", key="reset_course"):
@@ -1041,6 +803,7 @@ if page == "📚 Curriculum":
         lid = lesson.get("lesson_id", i + 1)
         title = lesson.get("title", f"Lesson {lid}")
         goal = lesson.get("goal", "")
+        diff = lesson.get("difficulty", "")
         done = st.session_state.progress.get(lid, {}).get("done", False)
 
         cols = st.columns([0.08, 0.7, 0.22])
@@ -1048,12 +811,12 @@ if page == "📚 Curriculum":
             st.write("✅" if done else "⬜")
         with cols[1]:
             st.markdown(f"**{lid}. {title}**  \n{goal}")
+            st.caption(f"Difficulty: {diff}")
         with cols[2]:
             if st.button("Open", key=f"open_l_{lid}"):
                 st.session_state.current_lesson_idx = i
-                st.session_state["pending_nav_radio"] = "📖 Lesson"
+                st.toast("Go to Lesson page 📖", icon="📖")
                 st.rerun()
-
 
     st.markdown("</div>", unsafe_allow_html=True)
 
@@ -1085,12 +848,7 @@ if page == "📖 Lesson":
     lesson = lessons[idx]
     lid = lesson.get("lesson_id", idx + 1)
     title = lesson.get("title", f"Lesson {lid}")
-
-    # 🔒 SAFETY OVERRIDE: force chapter-based retrieval
-    chapter_num = lesson.get("chapter_number", lid)
-    query = lesson.get("search_query", "")
-    if not query or "chapter" not in query.lower():
-        query = f"Chapter {chapter_num} {title}"
+    query = lesson.get("search_query", title)
 
     st.markdown('<div class="card">', unsafe_allow_html=True)
     st.markdown(f"### 📖 {lid}. {title}")
@@ -1099,7 +857,7 @@ if page == "📖 Lesson":
     # Lesson content
     if lid not in st.session_state.lesson_cache:
         k = st.session_state.k_value
-        context_docs = retrieve(query, k=k, chapter_number=chapter_num)
+        context_docs = retrieve(query, k=k)
         context_text = format_context_for_prompt(context_docs)
 
         with st.spinner("Generating lesson from the book…"):
@@ -1152,9 +910,7 @@ if page == "📖 Lesson":
                     lesson_title=title,
                     lesson_query=query,
                     user_level=st.session_state.user_level,
-                    k=st.session_state.k_value,
-                    chapter_number=chapter_num
-
+                    k=st.session_state.k_value
                 )
             st.markdown(ans)
             if srcs:
@@ -1176,8 +932,7 @@ if page == "📖 Lesson":
     if lid not in st.session_state.checkpoint_cache:
         if st.button("Generate checkpoint questions", key=f"gen_cp_{lid}"):
             k = st.session_state.k_value
-            context_docs = retrieve(query, k=k, chapter_number=chapter_num)
-
+            context_docs = retrieve(query, k=k)
             context_text = format_context_for_prompt(context_docs)
 
             with st.spinner("Creating checkpoint…"):

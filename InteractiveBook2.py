@@ -100,7 +100,10 @@ FINAL_PASSING_THRESHOLD = 4    # pass final if >= 4 correct out of 5
 
 APP_CSS = """
 <style>
-/* ====== Background overlay (keep bg visible + readable) ====== */
+:root, html, body { color-scheme: light !important; }
+/* ===============================
+   0) Background overlay
+   =============================== */
 [data-testid="stAppViewContainer"]{
   position: relative;
 }
@@ -108,7 +111,7 @@ APP_CSS = """
   content:"";
   position: fixed;
   inset: 0;
-  background: rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.10);
   backdrop-filter: blur(2px);
   z-index: 0;
   pointer-events: none;
@@ -119,204 +122,149 @@ APP_CSS = """
   z-index: 1;
 }
 
-/* ====== Main typography ====== */
-h1, h2, h3, h4, h5, h6 { color:#0f172a !important; }
-p, li, span, div { color:#0f172a; }
-.stCaption, small { color:#475569 !important; }
-
-/* ====== Sidebar (MAKE IT LOOK GOOD) ====== */
+/* ===============================
+   1) Sidebar (dark + readable, ALWAYS)
+   =============================== */
 section[data-testid="stSidebar"]{
   background: rgba(15,23,42,0.92) !important;
   border-right: 1px solid rgba(255,255,255,0.08);
 }
+
+/* Sidebar text always white */
+section[data-testid="stSidebar"],
 section[data-testid="stSidebar"] *{
   color: rgba(255,255,255,0.92) !important;
+  -webkit-text-fill-color: rgba(255,255,255,0.92) !important;
+  opacity: 1 !important;
 }
+
+/* Sidebar caption/subtext a bit softer */
 section[data-testid="stSidebar"] .stCaption,
-section[data-testid="stSidebar"] small{
-  color: rgba(255,255,255,0.65) !important;
+section[data-testid="stSidebar"] small,
+section[data-testid="stSidebar"] .stCaption *,
+section[data-testid="stSidebar"] small *{
+  color: rgba(255,255,255,0.72) !important;
+  -webkit-text-fill-color: rgba(255,255,255,0.72) !important;
 }
 
-/* Sidebar spacing */
-section[data-testid="stSidebar"] [data-testid="stVerticalBlock"]{
-  gap: 0.65rem;
-}
-
-/* Sidebar radio pills */
+/* Sidebar navigation pills (radio group) */
 section[data-testid="stSidebar"] div[role="radiogroup"] label{
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 12px;
+  background: rgba(255,255,255,0.07) !important;
+  border: 1px solid rgba(255,255,255,0.12) !important;
+  border-radius: 14px !important;
   padding: 10px 12px;
   margin: 6px 0;
   transition: 0.15s ease;
 }
 section[data-testid="stSidebar"] div[role="radiogroup"] label:hover{
-  background: rgba(255,255,255,0.10);
-  border-color: rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.12) !important;
+  border-color: rgba(255,255,255,0.18) !important;
+}
+section[data-testid="stSidebar"] div[role="radiogroup"] input:checked + div,
+section[data-testid="stSidebar"] div[role="radiogroup"] input:checked + div *{
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  font-weight: 900 !important;
 }
 
-/* Make the selected radio look highlighted */
-section[data-testid="stSidebar"] div[role="radiogroup"] input:checked + div{
-  font-weight: 800;
-}
-
-/* ====== Buttons (FIX missing text + make consistent) ====== */
-.stButton > button{
+/* ===============================
+   2) Buttons (ALWAYS dark bg + white text)
+   =============================== */
+.stButton > button,
+div[data-testid="stFormSubmitButton"] button,
+button[data-testid="baseButton-primary"],
+button[data-testid="baseButton-secondary"],
+button[data-testid="baseButton-minimal"],
+button[kind="primary"],
+button[kind="secondary"]{
   background: #0f172a !important;
   color: #ffffff !important;
-  border: 1px solid rgba(255,255,255,0.08) !important;
+  -webkit-text-fill-color: #ffffff !important;
+  border: 1px solid rgba(255,255,255,0.10) !important;
   border-radius: 12px !important;
   padding: 0.55rem 1.1rem !important;
   font-weight: 800 !important;
   box-shadow: 0 8px 18px rgba(15,23,42,0.18) !important;
 }
-.stButton > button *{
-  color: #ffffff !important; /* IMPORTANT: keeps button label visible */
-}
-.stButton > button:hover{
+.stButton > button:hover,
+div[data-testid="stFormSubmitButton"] button:hover,
+button[data-testid="baseButton-primary"]:hover,
+button[data-testid="baseButton-secondary"]:hover,
+button[data-testid="baseButton-minimal"]:hover,
+button[kind="primary"]:hover,
+button[kind="secondary"]:hover{
   background: #1f2937 !important;
   transform: translateY(-1px);
 }
-
-/* Make small buttons (like "Start") look better */
-.stButton > button[kind="secondary"]{
-  background: #0f172a !important;
+/* Force button label/icon ALWAYS visible */
+.stButton > button *,
+div[data-testid="stFormSubmitButton"] button *,
+button[data-testid="baseButton-primary"] *,
+button[data-testid="baseButton-secondary"] *,
+button[data-testid="baseButton-minimal"] *,
+button[kind] *{
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  fill: #ffffff !important;
+  stroke: #ffffff !important;
+  opacity: 1 !important;
 }
 
-/* ====== Input boxes (keep your dark theme but readable) ====== */
+/* ===============================
+   3) Expanders (Sources) – readable
+   =============================== */
+div[data-testid="stExpander"] details summary{
+  background: rgba(255,255,255,0.85) !important;
+  border: 1px solid rgba(15,23,42,0.10) !important;
+  border-radius: 12px !important;
+  padding: 10px 12px !important;
+}
+div[data-testid="stExpander"] details summary *{
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+div[data-testid="stExpander"] div[role="region"] *{
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+
+/* Divider a bit softer */
+.stDivider { opacity: 0.25; }
+
+/* ===============================
+   4) Inputs / Selectbox (dark look always)
+   =============================== */
 .stTextInput input,
 .stTextArea textarea,
 .stSelectbox div[data-baseweb="select"] > div{
   background: rgba(15,23,42,0.92) !important;
   color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
   border-radius: 12px !important;
   border: 1px solid rgba(255,255,255,0.10) !important;
 }
-.stTextInput label, .stTextArea label, .stSelectbox label, .stSlider label{
-  color:#0f172a !important;
-  font-weight: 800 !important;
-}
-
-/* ====== Cards / sections look nicer ====== */
-.stDivider { opacity: 0.25; }
-
-/* ===== FIX: button text missing in forms / submit buttons ===== */
-button[kind], button[kind] * {
-  color: #ffffff !important;
-  fill: #ffffff !important;
-}
-
-/* Streamlit sometimes uses <p> inside buttons */
-.stButton button p,
-.stButton button span,
-.stButton button div,
-.stForm button p,
-.stForm button span,
-.stForm button div {
-  color: #ffffff !important;
-}
-
-/* Make ALL primary buttons consistent */
-button[kind="primary"]{
-  background: #0f172a !important;
-  border: 1px solid rgba(255,255,255,0.10) !important;
-  border-radius: 12px !important;
-  font-weight: 800 !important;
-}
-button[kind="primary"]:hover{
-  background: #1f2937 !important;
-}
-
-/* Make secondary buttons also readable */
-button[kind="secondary"]{
-  background: rgba(15,23,42,0.92) !important;
-  border: 1px solid rgba(255,255,255,0.10) !important;
-  border-radius: 12px !important;
-}
-button[kind="secondary"]:hover{
-  background: rgba(31,41,55,0.95) !important;
-}
-/* ===== Selectbox dropdown (BaseWeb) FIX: dark menu + readable text ===== */
-
-/* The selected value area */
-div[data-baseweb="select"] > div{
-  background: rgba(15,23,42,0.92) !important;
-  border: 1px solid rgba(255,255,255,0.10) !important;
-  border-radius: 12px !important;
-}
+/* Select text + icons */
 div[data-baseweb="select"] *{
   color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
 }
-
-/* The dropdown menu panel */
-div[data-baseweb="popover"]{
-  z-index: 9999 !important;
-}
-div[data-baseweb="menu"]{
-  background: rgba(15,23,42,0.98) !important;
-  border: 1px solid rgba(255,255,255,0.10) !important;
-  border-radius: 12px !important;
-  overflow: hidden !important;
-}
-
-/* Each option */
-div[data-baseweb="option"]{
-  background: transparent !important;
-  color: #ffffff !important;
-}
-div[data-baseweb="option"]:hover{
-  background: rgba(255,255,255,0.10) !important;
-}
-
-/* Some Streamlit versions wrap option text in spans/divs */
-div[data-baseweb="option"] *{
-  color: #ffffff !important;
-}
-
-/* ===== HARD FIX for selectbox dropdown text (portal menu) ===== */
-
-/* The popover menu background */
+/* Dropdown menu */
 body div[data-baseweb="popover"] div[data-baseweb="menu"]{
   background: rgba(15,23,42,0.98) !important;
   border: 1px solid rgba(255,255,255,0.12) !important;
   border-radius: 12px !important;
 }
-
-/* Force ALL text inside dropdown to be white */
-body div[data-baseweb="popover"] *{
+body div[data-baseweb="popover"] div[data-baseweb="option"]{
   color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
 }
-
-/* Option hover */
 body div[data-baseweb="popover"] div[data-baseweb="option"]:hover{
   background: rgba(255,255,255,0.10) !important;
 }
 
-/* Selected value area should be white too */
-div[data-baseweb="select"] *{
-  color: #ffffff !important;
-}
-
-/* ===== Fix Expander (Sources) text being black on dark header ===== */
-div[data-testid="stExpander"] details summary{
-  background: rgba(255,255,255,0.85) !important;  /* make header light */
-  border: 1px solid rgba(15,23,42,0.10) !important;
-  border-radius: 12px !important;
-  padding: 10px 12px !important;
-}
-
-/* Header text */
-div[data-testid="stExpander"] details summary *{
-  color: #0f172a !important;
-}
-
-/* Expanded content text */
-div[data-testid="stExpander"] div[role="region"] *{
-  color: #0f172a !important;
-}
-
-/* ===== Certificate styling ===== */
+/* ===============================
+   6) Certificate styling (unchanged)
+   =============================== */
 .certificate-container{
   max-width: 980px;
   margin: 24px auto;
@@ -328,7 +276,6 @@ div[data-testid="stExpander"] div[role="region"] *{
   position: relative;
   overflow: hidden;
 }
-
 .certificate-container::before{
   content:"";
   position:absolute;
@@ -336,7 +283,6 @@ div[data-testid="stExpander"] div[role="region"] *{
   background: radial-gradient(circle at 80% 30%, rgba(15,23,42,0.06), transparent 55%);
   pointer-events:none;
 }
-
 .seal{
   position:absolute;
   top: 28px;
@@ -356,55 +302,13 @@ div[data-testid="stExpander"] div[role="region"] *{
   line-height: 1.2;
   box-shadow: 0 10px 22px rgba(15,23,42,0.25);
 }
-
-.cert-header{
-  font-size: 34px;
-  font-weight: 900;
-  color: #0f172a;
-  margin-bottom: 6px;
-}
-
-.cert-sub{
-  font-size: 16px;
-  color:#334155;
-  margin-bottom: 16px;
-}
-
-.cert-name{
-  font-size: 40px;
-  font-weight: 900;
-  color:#0f172a;
-  margin: 10px 0 18px 0;
-}
-
-.cert-body{
-  font-size: 16px;
-  color:#0f172a;
-  line-height: 1.6;
-  margin-bottom: 18px;
-}
-
-.cert-grade{
-  font-size: 18px;
-  font-weight: 800;
-  color:#0f172a;
-  margin: 10px 0 18px 0;
-}
-
-.cert-footer{
-  display:flex;
-  justify-content: space-between;
-  gap: 18px;
-  margin-top: 18px;
-}
-
-.signature{
-  flex: 1;
-  border-top: 1px solid rgba(15,23,42,0.18);
-  padding-top: 10px;
-  color:#0f172a;
-  font-weight: 700;
-}
+.cert-header{ font-size: 34px; font-weight: 900; color: #0f172a; margin-bottom: 6px; }
+.cert-sub{ font-size: 16px; color:#334155; margin-bottom: 16px; }
+.cert-name{ font-size: 40px; font-weight: 900; color:#0f172a; margin: 10px 0 18px 0; }
+.cert-body{ font-size: 16px; color:#0f172a; line-height: 1.6; margin-bottom: 18px; }
+.cert-grade{ font-size: 18px; font-weight: 800; color:#0f172a; margin: 10px 0 18px 0; }
+.cert-footer{ display:flex; justify-content: space-between; gap: 18px; margin-top: 18px; }
+.signature{ flex: 1; border-top: 1px solid rgba(15,23,42,0.18); padding-top: 10px; color:#0f172a; font-weight: 700; }
 
 </style>
 """
@@ -1092,6 +996,7 @@ if not st.session_state.user_profile["setup_complete"]:
                 st.session_state.certified = False
                 st.session_state.exam_score = 0
                 st.session_state.current_lesson_idx = 0
+                st.session_state["nav_page"] = "📚 Curriculum"
 
                 st.rerun()
             else:
@@ -1162,7 +1067,21 @@ else:
         st.caption(f"{passed_lessons}/{len(lessons_list)} Chapters Passed")
 
         st.markdown("---")
-        page = st.radio("Navigation", ["📚 Curriculum", "📖 Active Lesson", "🎓 Certification", "⚙️ Settings"])
+
+        # --- Handle navigation redirect BEFORE radio is created ---
+        if "nav_target" in st.session_state:
+            st.session_state["nav_page"] = st.session_state["nav_target"]
+            del st.session_state["nav_target"]
+
+        page = st.radio(
+            "Navigation",
+            ["📚 Curriculum", "📖 Active Lesson", "🎓 Certification", "⚙️ Settings"],
+            key="nav_page"
+        )
+        # # Page override (used for auto-navigation like final exam)
+        # if "page_override" in st.session_state:
+        #     page = st.session_state.page_override
+        #     del st.session_state.page_override
 
         st.markdown("---")
         if st.button("🔄 Reset Profile"):
@@ -1221,8 +1140,10 @@ else:
                     if prev_passed:
                         if st.button("Start", key=f"go_{lid}"):
                             st.session_state.current_lesson_idx = i
+                            st.session_state["nav_target"] = "📖 Active Lesson"
                             st.toast(f"Loading Chapter {lid}...")
-                            st.info("Switch to '📖 Active Lesson'")
+                            st.rerun()
+
                     else:
                         st.button("🔒 Locked", disabled=True, key=f"lock_{lid}")
                 st.divider()
@@ -1292,12 +1213,20 @@ else:
 
         st.divider()
 
-        # Chat (your sources)
         st.subheader("💬 Chat with AI Tutor (chapter-scoped)")
+
         chat_key = f"chat_history_{lid}"
         if chat_key not in st.session_state:
             st.session_state[chat_key] = []
 
+        input_key = f"chat_input_{lid}"
+
+        # Clear input safely BEFORE widget is created
+        if st.session_state.get(f"clear_{input_key}", False):
+            st.session_state[input_key] = ""
+            st.session_state[f"clear_{input_key}"] = False
+
+        # Render previous messages
         for msg in st.session_state[chat_key]:
             with st.chat_message(msg["role"]):
                 st.markdown(msg["content"])
@@ -1307,36 +1236,60 @@ else:
                             st.markdown(f"**▶ {s['label']}**")
                             st.write(s["snippet"])
 
-        user_q = st.chat_input("Ask a question about this chapter…", key=f"chat_input_{lid}")
-        if user_q:
-            st.session_state[chat_key].append({"role": "user", "content": user_q})
-            with st.chat_message("user"):
-                st.markdown(user_q)
+        # Input box (ENTER sends)
+        user_q = st.text_input(
+            "",
+            key=input_key,
+            placeholder="Ask a question about this chapter…"
+        )
 
-            with st.chat_message("assistant"):
-                with st.spinner("Answering from the book…"):
-                    ans, srcs = answer_question(
-                        db=db,
-                        user_question=user_q,
-                        lesson_title=lesson_data["title"],
-                        lesson_query=query,
-                        user_level=p["level"],
-                        k=enforce_min_k(p["search_mode"], p["k_chunks"]),
-                        chapter_number=chapter_num,
-                        search_mode=p["search_mode"],
-                    )
-                st.markdown(ans)
-                if srcs:
-                    with st.expander("📌 Sources", expanded=False):
-                        for s in srcs:
-                            st.markdown(f"**▶ {s['label']}**")
-                            st.write(s["snippet"])
+        # SEND ON ENTER
+        if user_q.strip():
+            # prevent double-send
+            if st.session_state.get(f"last_sent_{lid}") != user_q:
+                st.session_state[f"last_sent_{lid}"] = user_q
 
-            st.session_state[chat_key].append({"role": "assistant", "content": ans, "sources": srcs})
+                # store user message
+                st.session_state[chat_key].append(
+                    {"role": "user", "content": user_q}
+                )
 
+                with st.chat_message("assistant"):
+                    with st.spinner("Answering from the book…"):
+                        ans, srcs = answer_question(
+                            db=db,
+                            user_question=user_q,
+                            lesson_title=lesson_data["title"],
+                            lesson_query=query,
+                            user_level=p["level"],
+                            k=enforce_min_k(p["search_mode"], p["k_chunks"]),
+                            chapter_number=chapter_num,
+                            search_mode=p["search_mode"],
+                        )
+                    st.markdown(ans)
+                    if srcs:
+                        with st.expander("📌 Sources", expanded=False):
+                            for s in srcs:
+                                st.markdown(f"**▶ {s['label']}**")
+                                st.write(s["snippet"])
+
+                st.session_state[chat_key].append(
+                    {"role": "assistant", "content": ans, "sources": srcs}
+                )
+
+                # clear input next run
+                st.session_state[f"clear_{input_key}"] = True
+                st.rerun()
+
+        # ---- Clear chat button ----
         if st.button("🧹 Clear chat", key=f"clear_chat_{lid}"):
             st.session_state[chat_key] = []
+            st.session_state[f"clear_{input_key}"] = True
+            st.session_state.pop(f"last_sent_{lid}", None)
             st.rerun()
+
+
+
 
         st.divider()
         st.subheader("✅ Active Learning Quiz (3 Questions)")
@@ -1402,9 +1355,15 @@ else:
 
                 # pass/fail + locking (friend behavior)
                 if current_score >= PASSING_THRESHOLD:
-                    st.balloons()
-                    st.success(f"🎉 PASSED! {current_score}/3")
+                    already_passed = st.session_state.progress.get(lid, {}).get("passed", False)
+
                     st.session_state.progress[lid] = {"passed": True, "score": current_score}
+                    st.success(f"🎉 PASSED! {current_score}/3")
+
+                    # 🎈 Celebrate ONLY once
+                    if not already_passed:
+                        st.balloons()
+
                     if st.button("Update Progress"):
                         st.rerun()
                 else:
@@ -1415,6 +1374,9 @@ else:
                         st.session_state[quiz_key] = False
                         st.rerun()
 
+        is_last_lesson = (idx == len(lessons) - 1)
+        passed_current = st.session_state.progress.get(lid, {}).get("passed", False)
+
         # Navigation between lessons (locked)
         st.divider()
         nav1, nav2 = st.columns([1, 1])
@@ -1423,11 +1385,15 @@ else:
                 st.session_state.current_lesson_idx = max(0, idx - 1)
                 st.rerun()
         with nav2:
-            # next allowed only if passed current
-            next_disabled = (idx >= len(lessons) - 1) or (not st.session_state.progress.get(lid, {}).get("passed", False))
-            if st.button("Next ➡", disabled=next_disabled, key=f"next_{lid}"):
-                st.session_state.current_lesson_idx = min(len(lessons) - 1, idx + 1)
-                st.rerun()
+            if is_last_lesson:
+                if st.button("🎓 Go to Final Exam", disabled=not passed_current, key=f"final_{lid}"):
+                    st.session_state["nav_target"] = "🎓 Certification"
+                    st.rerun()
+            else:
+                if st.button("Next ➡", disabled=not passed_current, key=f"next_{lid}"):
+                    st.session_state.current_lesson_idx = idx + 1
+                    st.rerun()
+
 
     # ---------- PAGE: CERTIFICATION ----------
     elif page == "🎓 Certification":

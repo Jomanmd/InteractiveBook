@@ -2,7 +2,7 @@
 vector_stores/
 *.faiss
 *.pkl
-*.pdf
 env/
 __pycache__/
 *.pyc
+.streamlit/secrets.toml
