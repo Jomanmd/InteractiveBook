@@ -153,7 +153,7 @@ pip install -r requirements.txt
 >
 > **3. Configure API Key: Since our API keys are kept private for security, you need to create a local secrets file.**
 >
-> Replace `echo GROQ_API_KEY="your_key" > .streamlit/secrets.toml` with the full line provided in the `Evaluation_Secrets.txt` file included in our **Moodle submission**.
+> add in .streamlit folder a file with a name secrets.toml and paste this `GROQ_API_KEY="your_key" ` with the full line provided in the `API_Key.txt` file included in our **Moodle submission**.
 > This line already contains the **actual API key** required for **InteractiveBook** to function, so you can simply copy and paste it directly into your terminal without any manual changes.
 
 ```bash
