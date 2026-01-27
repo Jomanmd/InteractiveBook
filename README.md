@@ -142,6 +142,8 @@ InteractiveBook follows a **Hybrid Intelligence Architecture**:
 git clone https://github.com/Jomanmd/InteractiveBook
 cd InteractiveBook
 
+the code in branch clean2
+
 **2. Install dependencies:**
 ```bash
 pip install -r requirements.txt
